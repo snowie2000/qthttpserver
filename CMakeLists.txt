@@ -1,10 +1,7 @@
 # Standalone CMakeLists.txt for Qt5 QtHttpServer backport.
 # Builds Qt5SslServer and Qt5HttpServer as independent libraries
 # without requiring the full Qt source tree / qt_build_repo() infrastructure.
-#
-# Options:
-#   BUILD_SHARED_LIBS=ON  (default) — build DLLs / .so
-#   BUILD_SHARED_LIBS=OFF          — build static libs (.lib / .a)
+# Only shared lib is possible, unless the full qt is statically built
 
 cmake_minimum_required(VERSION 3.14)
 
@@ -26,9 +23,9 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Put DLLs / import libs next to the source so tooling finds them easily
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+#set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
 # ── Find Qt5 ─────────────────────────────────────────────────────────────────
 find_package(Qt5 5.12 REQUIRED COMPONENTS Core Network)
@@ -66,21 +63,21 @@ message(STATUS "Qt WebSockets:  ${Qt5WebSockets_FOUND}")
 set(SSL_PRIV_ROOT "${CMAKE_BINARY_DIR}/qt_priv_inc/sslserver")
 file(MAKE_DIRECTORY "${SSL_PRIV_ROOT}/private")
 file(COPY
-    "${CMAKE_SOURCE_DIR}/src/sslserver/qsslserver_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/sslserver/qsslserver_p.h"
     DESTINATION "${SSL_PRIV_ROOT}/private")
 
 # --- HttpServer ---
 set(HTTP_PRIV_ROOT "${CMAKE_BINARY_DIR}/qt_priv_inc/httpserver")
 file(MAKE_DIRECTORY "${HTTP_PRIV_ROOT}/private")
 file(COPY
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qabstracthttpserver_p.h"
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qhttpserver_p.h"
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qhttpserverliterals_p.h"
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qhttpserverrequest_p.h"
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qhttpserverresponder_p.h"
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qhttpserverresponse_p.h"
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qhttpserverrouter_p.h"
-    "${CMAKE_SOURCE_DIR}/src/httpserver/qhttpserverrouterrule_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qabstracthttpserver_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qhttpserver_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qhttpserverliterals_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qhttpserverrequest_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qhttpserverresponder_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qhttpserverresponse_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qhttpserverrouter_p.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver/qhttpserverrouterrule_p.h"
     DESTINATION "${HTTP_PRIV_ROOT}/private")
 
 # ── Qt5SslServer ──────────────────────────────────────────────────────────────
@@ -92,18 +89,15 @@ if(QT_HAVE_SSL)
         src/sslserver/qtsslserverglobal.h
     )
 
-    if(BUILD_SHARED_LIBS)
-        target_compile_definitions(Qt5SslServer PRIVATE QT_BUILD_SSLSERVER_LIB)
-    else()
-        target_compile_definitions(Qt5SslServer PUBLIC QT_STATIC)
-    endif()
+
+    target_compile_definitions(Qt5SslServer PRIVATE QT_BUILD_SSLSERVER_LIB)
 
     target_include_directories(Qt5SslServer
         PUBLIC
             # <QtSslServer/qsslserver.h> forwarding headers live here
-            $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             # Direct source-level includes inside the library
-            $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/sslserver>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/sslserver>
         PRIVATE
             # Resolves <private/qsslserver_p.h>
             "${SSL_PRIV_ROOT}"
@@ -168,23 +162,20 @@ add_library(Qt5HttpServer
     ${HTTPSERVER_HEADERS}
 )
 
-if(BUILD_SHARED_LIBS)
-    target_compile_definitions(Qt5HttpServer PRIVATE QT_BUILD_HTTPSERVER_LIB)
-else()
-    target_compile_definitions(Qt5HttpServer PUBLIC QT_STATIC)
-endif()
+
+target_compile_definitions(Qt5HttpServer PRIVATE QT_BUILD_HTTPSERVER_LIB)
 
 target_include_directories(Qt5HttpServer
     PUBLIC
         # <QtHttpServer/qabstracthttpserver.h> forwarding headers live here
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         # Direct source includes (e.g. qthttpserverglobal.h)
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/httpserver>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/httpserver>
     PRIVATE
         # Resolves <private/qabstracthttpserver_p.h> etc.
         "${HTTP_PRIV_ROOT}"
         # Bundled http-parser
-        "${CMAKE_SOURCE_DIR}/src/3rdparty/http-parser"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/3rdparty/http-parser"
 )
 
 target_link_libraries(Qt5HttpServer
@@ -210,7 +201,7 @@ if(QT_HAVE_SSL AND TARGET Qt5SslServer)
     target_link_libraries(Qt5HttpServer PUBLIC Qt5SslServer)
     # Expose SslServer headers so consumers see <QtSslServer/...>
     target_include_directories(Qt5HttpServer PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/sslserver>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/sslserver>
     )
 endif()
 
